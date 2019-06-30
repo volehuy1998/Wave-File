@@ -79,6 +79,15 @@ int main()
 
 	// Read data
 	is.read(data.data, len);
+
+	// Processing: Basic noise 
+	for (int i = 0; i < len; ++i)
+	{
+		char& c = data.data[i];
+		if (c < 0) c = 0;
+		else if (0 < c && c < 50) c = 50;
+		else c = 200;
+	}
 	
 	// Write data
 	os.write((char*)&riff, sizeof riff);
