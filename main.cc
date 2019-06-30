@@ -1,18 +1,17 @@
-#include <iostream>
 #include <fstream>
 #include <cstring>
 
 using namespace std;
 using byte = char;
 
-const char *pathIn =  "audio.wav";
-const char *pathOut = "audio2.wav";
+const byte *pathIn =  "origin.wav";
+const byte *pathOut = "noise.wav";
 
 struct Wav_RIFF_header
 {
-	char ChunkID[4];
-	char ChunkSize[4];
-	char Format[4];
+	byte ChunkID[4];
+	byte ChunkSize[4];
+	byte Format[4];
 	Wav_RIFF_header()
 	{
 		memset(ChunkID, 0, sizeof ChunkID);
@@ -23,15 +22,15 @@ struct Wav_RIFF_header
 
 struct Wav_FMT
 {
-	char Subchunk1ID[4];
-	char Subchunk1Size[4];
-	char AudioFormat[2];
-	char NumChannels[2];
-	char SampleRate[4];
-	char ByteRate[4];
-	char BlockAlign[2];
-	char BitsPerSample[2];
-	char ExtraParamSize[2];
+	byte Subchunk1ID[4];
+	byte Subchunk1Size[4];
+	byte AudioFormat[2];
+	byte NumChannels[2];
+	byte SampleRate[4];
+	byte ByteRate[4];
+	byte BlockAlign[2];
+	byte BitsPerSample[2];
+	byte ExtraParamSize[2];
 	Wav_FMT()
 	{
 		memset(Subchunk1ID, 0, sizeof Subchunk1ID);
@@ -48,8 +47,8 @@ struct Wav_FMT
 
 struct Wav_DATA_header
 {
-	char Subchunk2ID[4];
-	char Subchunk2Size[4];
+	byte Subchunk2ID[4];
+	byte Subchunk2Size[4];
 	Wav_DATA_header()
 	{
 		memset(Subchunk2ID, 0, sizeof Subchunk2ID);
@@ -59,7 +58,7 @@ struct Wav_DATA_header
 
 struct Wav_audio
 {
-	char* data;
+	byte* data;
 } data;
 
 int main()
@@ -67,15 +66,15 @@ int main()
 	ifstream is (pathIn,  ios::binary);
 	ofstream os (pathOut, ios::binary); 
 	// Read header
-	is.read((char*)&riff, sizeof riff);
-	is.read((char*)&fmt, sizeof fmt);
-	is.read((char*)&data_header, sizeof data_header);
+	is.read((byte*)&riff, sizeof riff);
+	is.read((byte*)&fmt, sizeof fmt);
+	is.read((byte*)&data_header, sizeof data_header);
 
 	// Get length
 	int len = *(int*)data_header.Subchunk2Size;
 
 	// Alloc
-	data.data = new char[len];
+	data.data = new byte[len];
 
 	// Read data
 	is.read(data.data, len);
@@ -83,16 +82,16 @@ int main()
 	// Processing: Basic noise 
 	for (int i = 0; i < len; ++i)
 	{
-		char& c = data.data[i];
+		byte& c = data.data[i];
 		if (c < 0) c = 0;
 		else if (0 < c && c < 50) c = 50;
 		else c = 200;
 	}
 	
 	// Write data
-	os.write((char*)&riff, sizeof riff);
-	os.write((char*)&fmt, sizeof fmt);
-	os.write((char*)&data_header, sizeof data_header);
+	os.write((byte*)&riff, sizeof riff);
+	os.write((byte*)&fmt, sizeof fmt);
+	os.write((byte*)&data_header, sizeof data_header);
 	os.write(data.data, len);
 
 	// Fin
@@ -101,34 +100,3 @@ int main()
 	os.close();
 	return 0;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
