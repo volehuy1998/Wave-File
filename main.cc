@@ -1,11 +1,13 @@
 #include <fstream>
+#include <iostream>
 #include <cstring>
+#include <string>
 
 using namespace std;
 using byte = char;
 
-const byte *pathIn =  "origin.wav";
-const byte *pathOut = "noise.wav";
+const string pathIn =  "origin.wav";
+const string pathOut = "noise.wav";
 
 struct Wav_RIFF_header
 {
@@ -30,7 +32,6 @@ struct Wav_FMT
 	byte ByteRate[4];
 	byte BlockAlign[2];
 	byte BitsPerSample[2];
-	byte ExtraParamSize[2];
 	Wav_FMT()
 	{
 		memset(Subchunk1ID, 0, sizeof Subchunk1ID);
@@ -41,7 +42,6 @@ struct Wav_FMT
 		memset(ByteRate, 0, sizeof ByteRate);
 		memset(BlockAlign, 0, sizeof BlockAlign);
 		memset(BitsPerSample, 0, sizeof BitsPerSample);
-		memset(ExtraParamSize, 0, sizeof ExtraParamSize);
 	}
 } fmt;
 
@@ -59,44 +59,80 @@ struct Wav_DATA_header
 struct Wav_audio
 {
 	byte* data;
+	int len;
+	Wav_audio() : data(nullptr), len(0) {}
+	~Wav_audio() 
+	{
+		if (data) delete[] data;
+		len = 0;
+	}
 } data;
+
+struct FILE_Audio
+{
+	ifstream is;
+	FILE_Audio(const string& pathIn) : is(pathIn.c_str(), ios::binary) {}
+	void read()
+	{
+		// Read header
+		is.read((byte*)&riff, sizeof riff);
+		is.read((byte*)&fmt, sizeof fmt);
+
+		int PCM = *(short*)fmt.AudioFormat;
+
+		if (PCM == 1)
+		{
+#define PCM
+			is.seekg(2, is.cur);
+		}
+
+		is.read((byte*)&data_header, sizeof data_header);
+		for (int i = 0; i < 4; i++)
+			cout << data_header.Subchunk2ID[i];
+
+		// Get length
+		data.len = *(int*)data_header.Subchunk2Size;
+
+		// Alloc
+		data.data = new byte[data.len];
+
+		// Read data
+		is.read(data.data, data.len);
+		is.close();
+	}
+	void write(const string& pathOut)
+	{
+		ofstream os(pathOut.c_str(), ios::binary);
+		// Write data
+		os.write((byte*)&riff, sizeof riff);
+		os.write((byte*)&fmt, sizeof fmt);
+#ifdef PCM
+		byte ExtraParamSize[2];
+		os.write(ExtraParamSize, sizeof ExtraParamSize);
+#endif
+		os.write((byte*)&data_header, sizeof data_header);
+		os.write(data.data, data.len);
+		os.close();
+	}
+	void make_noise()
+	{
+		if (data.data == nullptr || data.len == 0)
+			return;
+		// Processing: Basic noise 
+		for (int i = 0; i < data.len; ++i)
+		{
+			byte& c = data.data[i];
+			if (c < 0) c = 0;
+			else if (0 < c && c < 50) c = 50;
+			else c = 200;
+		}
+	}
+} wav(pathIn);
 
 int main()
 {
-	ifstream is (pathIn,  ios::binary);
-	ofstream os (pathOut, ios::binary); 
-	// Read header
-	is.read((byte*)&riff, sizeof riff);
-	is.read((byte*)&fmt, sizeof fmt);
-	is.read((byte*)&data_header, sizeof data_header);
-
-	// Get length
-	int len = *(int*)data_header.Subchunk2Size;
-
-	// Alloc
-	data.data = new byte[len];
-
-	// Read data
-	is.read(data.data, len);
-
-	// Processing: Basic noise 
-	for (int i = 0; i < len; ++i)
-	{
-		byte& c = data.data[i];
-		if (c < 0) c = 0;
-		else if (0 < c && c < 50) c = 50;
-		else c = 200;
-	}
-	
-	// Write data
-	os.write((byte*)&riff, sizeof riff);
-	os.write((byte*)&fmt, sizeof fmt);
-	os.write((byte*)&data_header, sizeof data_header);
-	os.write(data.data, len);
-
-	// Fin
-	delete[] data.data;
-	is.close();
-	os.close();
+	wav.read();
+	wav.make_noise();
+	wav.write(pathOut);
 	return 0;
 }
