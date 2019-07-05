@@ -3,6 +3,8 @@
 #include <cstring>
 #include <string>
 
+#define TEST
+
 using namespace std;
 using byte = char;
 
@@ -71,31 +73,27 @@ struct Wav_audio
 struct FILE_Audio
 {
 	ifstream is;
+	FILE_Audio() = default;
 	FILE_Audio(const string& pathIn) : is(pathIn.c_str(), ios::binary) {}
-	void read()
+	void read(const string& pathIn)
 	{
+		if (is.is_open()) { is.close(); }
+		is.open(pathIn.c_str(), ios::binary);
 		// Read header
 		is.read((byte*)&riff, sizeof riff);
 		is.read((byte*)&fmt, sizeof fmt);
 
 		int PCM = *(short*)fmt.AudioFormat;
-
 		if (PCM == 1)
 		{
 #define PCM
 			is.seekg(2, is.cur);
 		}
-
 		is.read((byte*)&data_header, sizeof data_header);
-		for (int i = 0; i < 4; i++)
-			cout << data_header.Subchunk2ID[i];
-
 		// Get length
 		data.len = *(int*)data_header.Subchunk2Size;
-
 		// Alloc
 		data.data = new byte[data.len];
-
 		// Read data
 		is.read(data.data, data.len);
 		is.close();
@@ -109,6 +107,10 @@ struct FILE_Audio
 #ifdef PCM
 		byte ExtraParamSize[2];
 		os.write(ExtraParamSize, sizeof ExtraParamSize);
+#endif
+#ifdef TEST
+		data.len /= 2;
+		*(int*)data_header.Subchunk2Size = data.len;
 #endif
 		os.write((byte*)&data_header, sizeof data_header);
 		os.write(data.data, data.len);
@@ -127,12 +129,28 @@ struct FILE_Audio
 			else c = 200;
 		}
 	}
-} wav(pathIn);
+} wav;
 
 int main()
 {
-	wav.read();
-	wav.make_noise();
+	int SampleRate, Channels, BitsPerSample, FileLength;
+	double time;
+	wav.read(pathIn);
+	SampleRate = *(int*)fmt.SampleRate;
+	Channels = *(short*)fmt.NumChannels;
+	BitsPerSample = *(short*)fmt.BitsPerSample;
+	FileLength = data.len;
+	time = 1.0 * FileLength / (SampleRate * Channels * BitsPerSample/8);
+	cout << "Origin: " << time << "(s)" << endl;
 	wav.write(pathOut);
+#ifdef TEST
+	wav.read(pathOut);
+	SampleRate = *(int*)fmt.SampleRate;
+	Channels = *(short*)fmt.NumChannels;
+	BitsPerSample = *(short*)fmt.BitsPerSample;
+	FileLength = data.len;
+	time = 1.0 * FileLength / (SampleRate * Channels * BitsPerSample/8);
+	cout << "Modified: " << time << "(s)" << endl;
+#endif
 	return 0;
 }
